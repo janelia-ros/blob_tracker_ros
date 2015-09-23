@@ -14,8 +14,6 @@
 
 namespace blob_tracker {
 
-using namespace cv_bridge; // CvImage, toCvShare
-
 class ProcessImageNodelet : public nodelet::Nodelet
 {
   // ROS communication
@@ -182,10 +180,31 @@ void ProcessImageNodelet::imageCb(const sensor_msgs::ImageConstPtr& image_msg,
   // }
 
   // Get a cv::Mat view of the source data
-  CvImageConstPtr source = toCvShare(image_msg);
+  cv_bridge::CvImageConstPtr source = cv_bridge::toCvShare(image_msg);
 
   // Except in Bayer downsampling case, output has same encoding as the input
-  CvImage output(source->header, source->encoding);
+  // cv_bridge::CvImage output(source->header, source->encoding);
+
+  // output.image = source->image;
+
+  cv_bridge::CvImagePtr output;
+  try
+  {
+    output = cv_bridge::toCvCopy(image_msg, sensor_msgs::image_encodings::BGR8);
+  }
+  catch (cv_bridge::Exception& e)
+  {
+    ROS_ERROR("cv_bridge exception: %s", e.what());
+    return;
+  }
+
+  // Draw an example circle on the video stream
+  if (output->image.rows > 60 && output->image.cols > 60)
+    cv::circle(output->image, cv::Point(512, 512), 20, cv::Scalar(255,0,0), -1);
+
+  // cv_bridge::CvImagePtr toCvCopy(const sensor_msgs::ImageConstPtr& source,
+  //                   const std::string& encoding = std::string());
+  // cv::circle(output, cv::Point(10, 8), 20, cv::Scalar(0, 0, 255), -1, 8, 0);
 
   // // Apply ROI (no copy, still a view of the image_msg data)
   // output.image = source->image(cv::Rect(config.x_offset, config.y_offset, width, height));
@@ -283,7 +302,8 @@ void ProcessImageNodelet::imageCb(const sensor_msgs::ImageConstPtr& image_msg,
 
   // Create output Image message
   /// @todo Could save copies by allocating this above and having output.image alias it
-  sensor_msgs::ImagePtr out_image = output.toImageMsg();
+  // sensor_msgs::ImagePtr out_image = output.toImageMsg();
+  sensor_msgs::ImagePtr out_image = output->toImageMsg();
 
   // Create updated CameraInfo message
   sensor_msgs::CameraInfoPtr out_info = boost::make_shared<sensor_msgs::CameraInfo>(*info_msg);
