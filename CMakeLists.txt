@@ -11,7 +11,7 @@ endif()
 find_package(Boost REQUIRED COMPONENTS thread)
 
 # Dynamic reconfigure support
-generate_dynamic_reconfigure_options(cfg/ProcessImage.cfg cfg/Debayer.cfg cfg/Rectify.cfg)
+generate_dynamic_reconfigure_options(cfg/ProcessImage.cfg)
 
 catkin_package(
   CATKIN_DEPENDS image_geometry roscpp sensor_msgs
@@ -24,12 +24,12 @@ include_directories(SYSTEM ${catkin_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
 include_directories(include)
 
 # Nodelet library
-add_library(${PROJECT_NAME} src/libblob_tracker/processor.cpp
-                                src/nodelets/debayer.cpp
-                                src/nodelets/rectify.cpp
-                                src/nodelets/process_image.cpp
-                                src/libblob_tracker/advertisement_checker.cpp
-                                src/nodelets/edge_aware.cpp
+# add_library(${PROJECT_NAME} src/libblob_tracker/processor.cpp
+#                                 src/nodelets/process_image.cpp
+#                                 src/libblob_tracker/advertisement_checker.cpp
+# )
+add_library(${PROJECT_NAME}
+  src/nodelets/process_image.cpp
 )
 add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_gencfg)
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${OpenCV_LIBRARIES})
@@ -45,12 +45,12 @@ install(FILES nodelet_plugins.xml
 )
 
 # Standalone node
-add_executable(blob_tracker_exe src/nodes/blob_tracker.cpp)
-target_link_libraries(blob_tracker_exe ${PROJECT_NAME}  ${Boost_LIBRARIES} ${OpenCV_LIBRARIES})
-SET_TARGET_PROPERTIES(blob_tracker_exe PROPERTIES OUTPUT_NAME blob_tracker)
-install(TARGETS blob_tracker_exe
-        DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
+# add_executable(blob_tracker_exe src/nodes/blob_tracker.cpp)
+# target_link_libraries(blob_tracker_exe ${PROJECT_NAME}  ${Boost_LIBRARIES} ${OpenCV_LIBRARIES})
+# SET_TARGET_PROPERTIES(blob_tracker_exe PROPERTIES OUTPUT_NAME blob_tracker)
+# install(TARGETS blob_tracker_exe
+#         DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+# )
 
 # install the launch file
 install(DIRECTORY launch
