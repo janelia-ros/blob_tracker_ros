@@ -31,10 +31,10 @@
 *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 *  POSSIBILITY OF SUCH DAMAGE.
 *********************************************************************/
-#include "image_proc/advertisement_checker.h"
+#include "blob_tracker/advertisement_checker.h"
 #include <boost/foreach.hpp>
 
-namespace image_proc {
+namespace blob_tracker {
 
 AdvertisementChecker::AdvertisementChecker(const ros::NodeHandle& nh,
                                            const std::string& name)
@@ -89,4 +89,4 @@ void AdvertisementChecker::stop()
   timer_.stop();
 }
 
-} // namespace image_proc
+} // namespace blob_tracker

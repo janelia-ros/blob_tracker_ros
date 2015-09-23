@@ -1,23 +1,23 @@
-<library path="lib/libimage_proc">
+<library path="lib/libblob_tracker">
 
-  <class name="image_proc/debayer"
-	 type="image_proc::DebayerNodelet"
+  <class name="blob_tracker/debayer"
+	 type="blob_tracker::DebayerNodelet"
 	 base_class_type="nodelet::Nodelet">
     <description>
       Nodelet to debayer (if needed) a raw camera image stream.
     </description>
   </class>
 
-  <class name="image_proc/rectify"
-	 type="image_proc::RectifyNodelet"
+  <class name="blob_tracker/rectify"
+	 type="blob_tracker::RectifyNodelet"
 	 base_class_type="nodelet::Nodelet">
     <description>
       Nodelet to rectify an unrectified camera image stream.
     </description>
   </class>
 
-  <class name="image_proc/crop_decimate"
-	 type="image_proc::CropDecimateNodelet"
+  <class name="blob_tracker/crop_decimate"
+	 type="blob_tracker::CropDecimateNodelet"
 	 base_class_type="nodelet::Nodelet">
     <description>
       Nodelet to apply decimation (software binning) and ROI to a raw camera

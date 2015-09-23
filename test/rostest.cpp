@@ -43,7 +43,7 @@ protected:
     image_transport::ImageTransport it(nh);
     cam_pub = it.advertiseCamera(topic_raw, 1);
 
-    // Wait for image_proc to be operational
+    // Wait for blob_tracker to be operational
     ros::master::V_TopicInfo topics;
     while (true) {
       if (ros::master::getTopics(topics)) {

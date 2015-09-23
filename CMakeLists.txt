@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
-project(image_proc)
+project(blob_tracker)
 
 find_package(catkin REQUIRED)
 
@@ -24,11 +24,11 @@ include_directories(SYSTEM ${catkin_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
 include_directories(include)
 
 # Nodelet library
-add_library(${PROJECT_NAME} src/libimage_proc/processor.cpp
+add_library(${PROJECT_NAME} src/libblob_tracker/processor.cpp
                                 src/nodelets/debayer.cpp
                                 src/nodelets/rectify.cpp
                                 src/nodelets/crop_decimate.cpp
-                                src/libimage_proc/advertisement_checker.cpp
+                                src/libblob_tracker/advertisement_checker.cpp
                                 src/nodelets/edge_aware.cpp
 )
 add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_gencfg)
@@ -45,10 +45,10 @@ install(FILES nodelet_plugins.xml
 )
 
 # Standalone node
-add_executable(image_proc_exe src/nodes/image_proc.cpp)
-target_link_libraries(image_proc_exe ${PROJECT_NAME}  ${Boost_LIBRARIES} ${OpenCV_LIBRARIES})
-SET_TARGET_PROPERTIES(image_proc_exe PROPERTIES OUTPUT_NAME image_proc)
-install(TARGETS image_proc_exe
+add_executable(blob_tracker_exe src/nodes/blob_tracker.cpp)
+target_link_libraries(blob_tracker_exe ${PROJECT_NAME}  ${Boost_LIBRARIES} ${OpenCV_LIBRARIES})
+SET_TARGET_PROPERTIES(blob_tracker_exe PROPERTIES OUTPUT_NAME blob_tracker)
+install(TARGETS blob_tracker_exe
         DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

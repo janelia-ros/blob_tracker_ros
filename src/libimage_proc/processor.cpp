@@ -31,11 +31,11 @@
 *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 *  POSSIBILITY OF SUCH DAMAGE.
 *********************************************************************/
-#include "image_proc/processor.h"
+#include "blob_tracker/processor.h"
 #include <sensor_msgs/image_encodings.h>
 #include <ros/console.h>
 
-namespace image_proc {
+namespace blob_tracker {
 
 namespace enc = sensor_msgs::image_encodings;
 
@@ -92,7 +92,7 @@ bool Processor::process(const sensor_msgs::ImageConstPtr& raw_image,
       code = CV_BayerGB2BGR;
 #endif
     else {
-      ROS_ERROR("[image_proc] Unsupported encoding '%s'", raw_encoding.c_str());
+      ROS_ERROR("[blob_tracker] Unsupported encoding '%s'", raw_encoding.c_str());
       return false;
     }
     cv::cvtColor(raw, output.color, code);
@@ -127,13 +127,13 @@ bool Processor::process(const sensor_msgs::ImageConstPtr& raw_image,
   }
   // 8UC3 does not specify a color encoding. Is it BGR, RGB, HSV, XYZ, LUV...?
   else if (raw_encoding == enc::TYPE_8UC3) {
-    ROS_ERROR("[image_proc] Ambiguous encoding '8UC3'. The camera driver "
+    ROS_ERROR("[blob_tracker] Ambiguous encoding '8UC3'. The camera driver "
               "should set the encoding to 'bgr8' or 'rgb8'.");
     return false;
   }
   // Something else we can't handle
   else {
-    ROS_ERROR("[image_proc] Unsupported encoding '%s'", raw_encoding.c_str());
+    ROS_ERROR("[blob_tracker] Unsupported encoding '%s'", raw_encoding.c_str());
     return false;
   }
 
@@ -151,4 +151,4 @@ bool Processor::process(const sensor_msgs::ImageConstPtr& raw_image,
   return true;
 }
 
-} //namespace image_proc
+} //namespace blob_tracker

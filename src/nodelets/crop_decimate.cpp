@@ -42,10 +42,10 @@
 #include <sensor_msgs/image_encodings.h>
 #include <dynamic_reconfigure/server.h>
 #include <cv_bridge/cv_bridge.h>
-#include <image_proc/CropDecimateConfig.h>
+#include <blob_tracker/CropDecimateConfig.h>
 #include <opencv2/imgproc/imgproc.hpp>
 
-namespace image_proc {
+namespace blob_tracker {
 
 using namespace cv_bridge; // CvImage, toCvShare
 
@@ -61,7 +61,7 @@ class CropDecimateNodelet : public nodelet::Nodelet
 
   // Dynamic reconfigure
   boost::recursive_mutex config_mutex_;
-  typedef image_proc::CropDecimateConfig Config;
+  typedef blob_tracker::CropDecimateConfig Config;
   typedef dynamic_reconfigure::Server<Config> ReconfigureServer;
   boost::shared_ptr<ReconfigureServer> reconfigure_server_;
   Config config_;
@@ -267,7 +267,7 @@ void CropDecimateNodelet::imageCb(const sensor_msgs::ImageConstPtr& image_msg,
   {
     cv::Mat decimated;
 
-    if (config.interpolation == image_proc::CropDecimate_NN)
+    if (config.interpolation == blob_tracker::CropDecimate_NN)
     {
       // Use optimized method instead of OpenCV's more general NN resize
       int pixel_size = output.image.elemSize();
@@ -339,8 +339,8 @@ void CropDecimateNodelet::configCb(Config &config, uint32_t level)
   config_ = config;
 }
 
-} // namespace image_proc
+} // namespace blob_tracker
 
 // Register nodelet
 #include <pluginlib/class_list_macros.h>
-PLUGINLIB_EXPORT_CLASS( image_proc::CropDecimateNodelet, nodelet::Nodelet)
+PLUGINLIB_EXPORT_CLASS( blob_tracker::CropDecimateNodelet, nodelet::Nodelet)
