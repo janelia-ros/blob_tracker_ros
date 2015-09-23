@@ -16,8 +16,8 @@
     </description>
   </class>
 
-  <class name="blob_tracker/crop_decimate"
-	 type="blob_tracker::CropDecimateNodelet"
+  <class name="blob_tracker/process_image"
+	 type="blob_tracker::ProcessImageNodelet"
 	 base_class_type="nodelet::Nodelet">
     <description>
       Nodelet to apply decimation (software binning) and ROI to a raw camera

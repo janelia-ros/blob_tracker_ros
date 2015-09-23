@@ -1,36 +1,3 @@
-/*********************************************************************
-* Software License Agreement (BSD License)
-* 
-*  Copyright (c) 2008, Willow Garage, Inc.
-*  All rights reserved.
-* 
-*  Redistribution and use in source and binary forms, with or without
-*  modification, are permitted provided that the following conditions
-*  are met:
-* 
-*   * Redistributions of source code must retain the above copyright
-*     notice, this list of conditions and the following disclaimer.
-*   * Redistributions in binary form must reproduce the above
-*     copyright notice, this list of conditions and the following
-*     disclaimer in the documentation and/or other materials provided
-*     with the distribution.
-*   * Neither the name of the Willow Garage nor the names of its
-*     contributors may be used to endorse or promote products derived
-*     from this software without specific prior written permission.
-* 
-*  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-*  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-*  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-*  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-*  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-*  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-*  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-*  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-*  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-*  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-*  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-*  POSSIBILITY OF SUCH DAMAGE.
-*********************************************************************/
 #include <boost/version.hpp>
 #if ((BOOST_VERSION / 100) % 1000) >= 53
 #include <boost/thread/lock_guard.hpp>
@@ -42,14 +9,14 @@
 #include <sensor_msgs/image_encodings.h>
 #include <dynamic_reconfigure/server.h>
 #include <cv_bridge/cv_bridge.h>
-#include <blob_tracker/CropDecimateConfig.h>
+#include <blob_tracker/ProcessImageConfig.h>
 #include <opencv2/imgproc/imgproc.hpp>
 
 namespace blob_tracker {
 
 using namespace cv_bridge; // CvImage, toCvShare
 
-class CropDecimateNodelet : public nodelet::Nodelet
+class ProcessImageNodelet : public nodelet::Nodelet
 {
   // ROS communication
   boost::shared_ptr<image_transport::ImageTransport> it_in_, it_out_;
@@ -61,7 +28,7 @@ class CropDecimateNodelet : public nodelet::Nodelet
 
   // Dynamic reconfigure
   boost::recursive_mutex config_mutex_;
-  typedef blob_tracker::CropDecimateConfig Config;
+  typedef blob_tracker::ProcessImageConfig Config;
   typedef dynamic_reconfigure::Server<Config> ReconfigureServer;
   boost::shared_ptr<ReconfigureServer> reconfigure_server_;
   Config config_;
@@ -76,7 +43,7 @@ class CropDecimateNodelet : public nodelet::Nodelet
   void configCb(Config &config, uint32_t level);
 };
 
-void CropDecimateNodelet::onInit()
+void ProcessImageNodelet::onInit()
 {
   ros::NodeHandle& nh         = getNodeHandle();
   ros::NodeHandle& private_nh = getPrivateNodeHandle();
@@ -90,19 +57,19 @@ void CropDecimateNodelet::onInit()
 
   // Set up dynamic reconfigure
   reconfigure_server_.reset(new ReconfigureServer(config_mutex_, private_nh));
-  ReconfigureServer::CallbackType f = boost::bind(&CropDecimateNodelet::configCb, this, _1, _2);
+  ReconfigureServer::CallbackType f = boost::bind(&ProcessImageNodelet::configCb, this, _1, _2);
   reconfigure_server_->setCallback(f);
 
   // Monitor whether anyone is subscribed to the output
-  image_transport::SubscriberStatusCallback connect_cb = boost::bind(&CropDecimateNodelet::connectCb, this);
-  ros::SubscriberStatusCallback connect_cb_info = boost::bind(&CropDecimateNodelet::connectCb, this);
+  image_transport::SubscriberStatusCallback connect_cb = boost::bind(&ProcessImageNodelet::connectCb, this);
+  ros::SubscriberStatusCallback connect_cb_info = boost::bind(&ProcessImageNodelet::connectCb, this);
   // Make sure we don't enter connectCb() between advertising and assigning to pub_
   boost::lock_guard<boost::mutex> lock(connect_mutex_);
   pub_ = it_out_->advertiseCamera("image_raw",  1, connect_cb, connect_cb, connect_cb_info, connect_cb_info);
 }
 
 // Handles (un)subscribing when clients (un)subscribe
-void CropDecimateNodelet::connectCb()
+void ProcessImageNodelet::connectCb()
 {
   boost::lock_guard<boost::mutex> lock(connect_mutex_);
   if (pub_.getNumSubscribers() == 0)
@@ -110,7 +77,7 @@ void CropDecimateNodelet::connectCb()
   else if (!sub_)
   {
     image_transport::TransportHints hints("raw", ros::TransportHints(), getPrivateNodeHandle());
-    sub_ = it_in_->subscribeCamera("image_raw", queue_size_, &CropDecimateNodelet::imageCb, this, hints);
+    sub_ = it_in_->subscribeCamera("image_raw", queue_size_, &ProcessImageNodelet::imageCb, this, hints);
   }
 }
 
@@ -167,7 +134,7 @@ void decimate(const cv::Mat& src, cv::Mat& dst, int decimation_x, int decimation
   }
 }
 
-void CropDecimateNodelet::imageCb(const sensor_msgs::ImageConstPtr& image_msg,
+void ProcessImageNodelet::imageCb(const sensor_msgs::ImageConstPtr& image_msg,
                                   const sensor_msgs::CameraInfoConstPtr& info_msg)
 {
   /// @todo Check image dimensions match info_msg
@@ -267,7 +234,7 @@ void CropDecimateNodelet::imageCb(const sensor_msgs::ImageConstPtr& image_msg,
   {
     cv::Mat decimated;
 
-    if (config.interpolation == blob_tracker::CropDecimate_NN)
+    if (config.interpolation == blob_tracker::ProcessImage_NN)
     {
       // Use optimized method instead of OpenCV's more general NN resize
       int pixel_size = output.image.elemSize();
@@ -334,7 +301,7 @@ void CropDecimateNodelet::imageCb(const sensor_msgs::ImageConstPtr& image_msg,
   pub_.publish(out_image, out_info);
 }
 
-void CropDecimateNodelet::configCb(Config &config, uint32_t level)
+void ProcessImageNodelet::configCb(Config &config, uint32_t level)
 {
   config_ = config;
 }
@@ -343,4 +310,4 @@ void CropDecimateNodelet::configCb(Config &config, uint32_t level)
 
 // Register nodelet
 #include <pluginlib/class_list_macros.h>
-PLUGINLIB_EXPORT_CLASS( blob_tracker::CropDecimateNodelet, nodelet::Nodelet)
+PLUGINLIB_EXPORT_CLASS( blob_tracker::ProcessImageNodelet, nodelet::Nodelet)
