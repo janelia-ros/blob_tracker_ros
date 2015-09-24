@@ -4,8 +4,7 @@
 	 type="blob_tracker::ProcessImageNodelet"
 	 base_class_type="nodelet::Nodelet">
     <description>
-      Nodelet to apply decimation (software binning) and ROI to a raw camera
-      image post-capture.
+      Nodelet to
     </description>
   </class>
 

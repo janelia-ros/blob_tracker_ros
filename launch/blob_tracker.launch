@@ -8,9 +8,17 @@
   <arg     if="$(arg respawn)" name="bond" value="" />
   <arg unless="$(arg respawn)" name="bond" value="--no-bond" />
 
-  <!-- Monochrome rectified image -->
-  <node pkg="nodelet" type="nodelet" name="process_image"
+  <node pkg="nodelet" type="nodelet" name="blob_tracker"
         args="load blob_tracker/process_image $(arg manager) $(arg bond)"
-	    respawn="$(arg respawn)" />
+	    respawn="$(arg respawn)">
+
+    <!-- remap input topics -->
+    <remap from="camera/image_raw" to="image_raw"/>
+    <remap from="camera/camera_info" to="camera_info"/>
+
+    <!-- remap output topics -->
+    <remap from="blob_out/image_raw" to="blob_out/image_raw"/>
+    <remap from="blob_out/camera_info" to="blob_out/camera_info"/>
+  </node>
 
 </launch>

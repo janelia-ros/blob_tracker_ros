@@ -46,7 +46,7 @@ void ProcessImageNodelet::onInit()
   ros::NodeHandle& nh = getNodeHandle();
   ros::NodeHandle& private_nh = getPrivateNodeHandle();
   ros::NodeHandle nh_in (nh, "camera");
-  ros::NodeHandle nh_out(nh, "camera_out");
+  ros::NodeHandle nh_out(nh, "blob_out");
   it_in_ .reset(new image_transport::ImageTransport(nh_in));
   it_out_.reset(new image_transport::ImageTransport(nh_out));
 

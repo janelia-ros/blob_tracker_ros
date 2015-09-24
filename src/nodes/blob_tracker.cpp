@@ -29,10 +29,12 @@ int main(int argc, char **argv)
     shared_params["queue_size"] = queue_size;
 
   nodelet::Loader manager(false); // Don't bring up the manager ROS API
-  nodelet::M_string remappings;
+  nodelet::M_string remappings(ros::names::getRemappings());
   nodelet::V_string my_argv;
 
   std::string process_image_name = ros::this_node::getName() + "_process_image";
+  remappings["camera/image_raw"] = ros::names::resolve("image_raw");
+  remappings["camera/camera_info"] = ros::names::resolve("camera_info");
   if (shared_params.valid())
     ros::param::set(process_image_name, shared_params);
   manager.load(process_image_name, "blob_tracker/process_image", remappings, my_argv);
