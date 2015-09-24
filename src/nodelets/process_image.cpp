@@ -43,7 +43,7 @@ class ProcessImageNodelet : public nodelet::Nodelet
 
 void ProcessImageNodelet::onInit()
 {
-  ros::NodeHandle& nh         = getNodeHandle();
+  ros::NodeHandle& nh = getNodeHandle();
   ros::NodeHandle& private_nh = getPrivateNodeHandle();
   ros::NodeHandle nh_in (nh, "camera");
   ros::NodeHandle nh_out(nh, "camera_out");
