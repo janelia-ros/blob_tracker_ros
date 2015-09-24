@@ -127,7 +127,7 @@ void ProcessImageNodelet::imageCb(const sensor_msgs::ImageConstPtr& image_msg,
   // }
 
   // Get a cv::Mat view of the source data
-  cv_bridge::CvImageConstPtr source = cv_bridge::toCvShare(image_msg);
+  cv_bridge::CvImageConstPtr source = cv_bridge::toCvShare(image_msg, sensor_msgs::image_encodings::MONO8);
 
   // We won't modify the data. We can safely share the data owned by the ROS message instead of copying.
   // cv_bridge::CvImage output(source->header, source->encoding);
@@ -135,11 +135,16 @@ void ProcessImageNodelet::imageCb(const sensor_msgs::ImageConstPtr& image_msg,
   // // Apply ROI (no copy, still a view of the image_msg data)
   // output.image = source->image(cv::Rect(config.x_offset, config.y_offset, width, height));
 
+  // Threshold
+  cv::Mat image_threshold = cv::Mat::zeros(source.image.size(), source.image.type());
+  cv::threshold(source,image_threshold,100,255,cv::THRESH_BINARY);
+
   // We want to modify the data in-place. We have to make a copy of the ROS message data.
   cv_bridge::CvImagePtr output;
   try
   {
-    output = cv_bridge::toCvCopy(image_msg, sensor_msgs::image_encodings::BGR8);
+    // output = cv_bridge::toCvCopy(image_msg, sensor_msgs::image_encodings::BGR8);
+    output = cv_bridge::toCvCopy(image_msg, sensor_msgs::image_encodings::MONO8);
   }
   catch (cv_bridge::Exception& e)
   {
@@ -148,8 +153,9 @@ void ProcessImageNodelet::imageCb(const sensor_msgs::ImageConstPtr& image_msg,
   }
 
   // Draw an example circle on the video stream
-  if (output->image.rows > 60 && output->image.cols > 60)
-    cv::circle(output->image, cv::Point(512, 512), 20, cv::Scalar(255,0,0), -1);
+  output.image = image_threshold.image;
+  // if (output->image.rows > 60 && output->image.cols > 60)
+  //   cv::circle(output->image, cv::Point(512, 512), 20, cv::Scalar(255,0,0), -1);
 
   // Create output Image message
   /// @todo Could save copies by allocating this above and having output.image alias it
