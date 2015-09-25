@@ -1,5 +1,4 @@
-blob_tracker_ros
-================
+#blob_tracker_ros
 
 Authors:
 

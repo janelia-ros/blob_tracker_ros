@@ -3,7 +3,15 @@ project(blob_tracker)
 
 find_package(catkin REQUIRED)
 
-find_package(catkin REQUIRED cv_bridge dynamic_reconfigure image_geometry image_transport nodelet roscpp sensor_msgs)
+find_package(catkin REQUIRED
+  message_generation
+  cv_bridge
+  dynamic_reconfigure
+  image_geometry
+  image_transport
+  nodelet
+  roscpp
+  sensor_msgs)
 find_package(OpenCV REQUIRED)
 if (OpenCV_VERSION VERSION_EQUAL "3")
   add_definitions("-DOPENCV3=1")
@@ -13,8 +21,20 @@ find_package(Boost REQUIRED COMPONENTS thread)
 # Dynamic reconfigure support
 generate_dynamic_reconfigure_options(cfg/ProcessImage.cfg)
 
+add_message_files(
+  FILES
+  Ellipse.msg
+  Blob.msg
+  Blobs.msg
+)
+
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+)
+
 catkin_package(
-  CATKIN_DEPENDS image_geometry roscpp sensor_msgs
+  CATKIN_DEPENDS image_geometry roscpp sensor_msgs message_runtime
   DEPENDS OpenCV
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
