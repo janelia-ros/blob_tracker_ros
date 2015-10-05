@@ -128,7 +128,9 @@ void ProcessImageNodelet::imageCb(const sensor_msgs::ImageConstPtr& image_msg,
 
   // Calculate Blob Data
   Blobs blobs;
-  blobs.header = source_ptr->header;
+  blobs.header = image_msg->header;
+  blobs.image_height = image_msg->height;
+  blobs.image_width = image_msg->width;
   cv::Scalar red(0,0,255);
   cv::Scalar green(0,255,0);
   for(int i=0;i<contours.size();++i)
