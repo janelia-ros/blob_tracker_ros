@@ -100,6 +100,7 @@ void ProcessImageNodelet::imageCb(const sensor_msgs::ImageConstPtr& image_msg,
   int morph_kernel_size = config.morph_kernel_size;
   int center_marker_radius = config.center_marker_radius;
   int drawn_line_thickness = config.drawn_line_thickness;
+  bool draw_crosshairs = config.draw_crosshairs;
 
   // Get a cv::Mat view of the source data
   cv_bridge::CvImageConstPtr source_ptr = cv_bridge::toCvShare(image_msg,sensor_msgs::image_encodings::MONO8);
@@ -121,6 +122,16 @@ void ProcessImageNodelet::imageCb(const sensor_msgs::ImageConstPtr& image_msg,
   // Output Image
   cv::Mat image_output;
   cv::cvtColor(image_morph,image_output,CV_GRAY2BGR);
+
+  // Draw Crosshairs
+  if (draw_crosshairs)
+  {
+    int h = image_msg->height;
+    int w = image_msg->width;
+    cv::Scalar yellow(0,255,255);
+    cv::line(image_output,cv::Point(0,h/2),cv::Point(w,h/2),yellow,drawn_line_thickness);
+    cv::line(image_output,cv::Point(w/2,0),cv::Point(w/2,h),yellow,drawn_line_thickness);
+  }
 
   // Draw Contours
   cv::Scalar blue(255,0,0);
