@@ -8,7 +8,7 @@
   <arg     if="$(arg respawn)" name="bond" value="" />
   <arg unless="$(arg respawn)" name="bond" value="--no-bond" />
 
-  <arg name="background_image_path" default="$(find rospy)/background.png" />
+  <arg name="background_image_path" default="$(find blob_tracker)/background.png" />
 
   <node pkg="nodelet" type="nodelet" name="blob_tracker"
         args="load blob_tracker/process_image $(arg manager) $(arg bond)"

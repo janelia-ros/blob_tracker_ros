@@ -11,6 +11,9 @@
 #include <cv_bridge/cv_bridge.h>
 #include <blob_tracker/ProcessImageConfig.h>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
+
+#include <ros/console.h>
 
 #include "blob_tracker/Ellipse.h"
 #include "blob_tracker/Blob.h"
@@ -22,14 +25,19 @@ class ProcessImageNodelet : public nodelet::Nodelet
 {
   // ROS communication
   boost::shared_ptr<image_transport::ImageTransport> it_in_,it_out_;
-  image_transport::CameraSubscriber sub_;
+  image_transport::CameraSubscriber cam_sub_;
   int queue_size_;
 
   boost::mutex connect_mutex_;
   image_transport::CameraPublisher image_pub_;
   ros::Publisher blobs_pub_;
 
-  // Dynamic reconfigure
+  // background image
+  std::string background_image_path_;
+  cv::Mat image_background_;
+  bool save_background_image_;
+
+  // dynamic reconfigure
   boost::recursive_mutex config_mutex_;
   typedef blob_tracker::ProcessImageConfig Config;
   typedef dynamic_reconfigure::Server<Config> ReconfigureServer;
@@ -52,43 +60,47 @@ void ProcessImageNodelet::onInit()
   ros::NodeHandle& private_nh = getPrivateNodeHandle();
   ros::NodeHandle nh_in (nh,"camera");
   ros::NodeHandle nh_out(nh,"blob_out");
-  it_in_ .reset(new image_transport::ImageTransport(nh_in));
+  it_in_.reset(new image_transport::ImageTransport(nh_in));
   it_out_.reset(new image_transport::ImageTransport(nh_out));
 
-  // Read parameters
+  // read parameters
   private_nh.param("queue_size",queue_size_,5);
 
-  std::string background_image_path;
-  private_nh.getParam("background_image_path",background_image_path);
-  ROS_WARN_STREAM("background_image_path " << background_image_path);
-
-  // Set up dynamic reconfigure
+  // set up dynamic reconfigure
   reconfigure_server_.reset(new ReconfigureServer(config_mutex_,private_nh));
   ReconfigureServer::CallbackType f = boost::bind(&ProcessImageNodelet::configCb,this,_1,_2);
   reconfigure_server_->setCallback(f);
 
-  // Monitor whether anyone is subscribed to the output
+  // background image
+  ros::NodeHandle& private_nh_mt = getMTPrivateNodeHandle();
+  private_nh.param<std::string>("background_image_path",background_image_path_,"background.png");
+  save_background_image_ = false;
+
+  // monitor whether anyone is subscribed to the output
   image_transport::SubscriberStatusCallback connect_cb = boost::bind(&ProcessImageNodelet::connectCb,this);
   ros::SubscriberStatusCallback connect_cb_info = boost::bind(&ProcessImageNodelet::connectCb,this);
   ros::SubscriberStatusCallback connect_cb_blobs = boost::bind(&ProcessImageNodelet::connectCb,this);
-  // Make sure we don't enter connectCb() between advertising and assigning to image_pub_
+  // make sure we don't enter connectCb() between advertising and assigning to image_pub_
   boost::lock_guard<boost::mutex> lock(connect_mutex_);
   image_pub_ = it_out_->advertiseCamera("image_raw",1,connect_cb,connect_cb,connect_cb_info,connect_cb_info);
   blobs_pub_ = nh.advertise<Blobs>("blobs",1000,connect_cb_blobs,connect_cb_blobs);
 }
 
-// Handles (un)subscribing when clients (un)subscribe
+// handles (un)subscribing when clients (un)subscribe
 void ProcessImageNodelet::connectCb()
 {
   boost::lock_guard<boost::mutex> lock(connect_mutex_);
   if ((image_pub_.getNumSubscribers() == 0) && (blobs_pub_.getNumSubscribers() == 0))
   {
-    sub_.shutdown();
+    cam_sub_.shutdown();
   }
-  else if (!sub_)
+  else if (!cam_sub_)
   {
+    // read background image if one exists
+    image_background_ = cv::imread(background_image_path_,CV_LOAD_IMAGE_GRAYSCALE);
+
     image_transport::TransportHints hints("raw",ros::TransportHints(),getPrivateNodeHandle());
-    sub_ = it_in_->subscribeCamera("image_raw",queue_size_,&ProcessImageNodelet::imageCb,this,hints);
+    cam_sub_ = it_in_->subscribeCamera("image_raw",queue_size_,&ProcessImageNodelet::imageCb,this,hints);
   }
 }
 
@@ -106,28 +118,46 @@ void ProcessImageNodelet::imageCb(const sensor_msgs::ImageConstPtr& image_msg,
   int drawn_line_thickness = config.drawn_line_thickness;
   bool draw_crosshairs = config.draw_crosshairs;
 
-  // Get a cv::Mat view of the source data
+  // get a cv::Mat view of the source data
   cv_bridge::CvImageConstPtr source_ptr = cv_bridge::toCvShare(image_msg,sensor_msgs::image_encodings::MONO8);
 
-  // Threshold
-  cv::Mat image_threshold;
-  cv::threshold(source_ptr->image,image_threshold,threshold,255,cv::THRESH_BINARY);
+  // save background image if necessary
+  if (save_background_image_)
+  {
+    save_background_image_ = false;
+    cv::imwrite(background_image_path_,source_ptr->image);
+  }
 
-  // Morphological Opening
+  // subtract background image if one exists
+  cv::Mat image_foreground;
+  if (image_background_.data)
+  {
+    cv::absdiff(source_ptr->image,image_background_,image_foreground);
+  }
+  else
+  {
+    image_foreground = source_ptr->image;
+  }
+
+  // threshold
+  cv::Mat image_threshold;
+  cv::threshold(image_foreground,image_threshold,threshold,255,cv::THRESH_BINARY);
+
+  // morphological opening
   cv::Mat image_morph;
   cv::Mat morph_kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(morph_kernel_size,morph_kernel_size));
   cv::morphologyEx(image_threshold,image_morph,cv::MORPH_OPEN,morph_kernel);
 
 
-  // Find Contours
+  // find contours
   std::vector<std::vector<cv::Point> > contours;
   cv::findContours(image_morph,contours,CV_RETR_EXTERNAL,CV_CHAIN_APPROX_SIMPLE);
 
-  // Output Image
+  // output image
   cv::Mat image_output;
   cv::cvtColor(image_morph,image_output,CV_GRAY2BGR);
 
-  // Draw Crosshairs
+  // draw crosshairs
   if (draw_crosshairs)
   {
     int h = image_msg->height;
@@ -137,11 +167,11 @@ void ProcessImageNodelet::imageCb(const sensor_msgs::ImageConstPtr& image_msg,
     cv::line(image_output,cv::Point(w/2,0),cv::Point(w/2,h),yellow,drawn_line_thickness);
   }
 
-  // Draw Contours
+  // draw Contours
   cv::Scalar blue(255,0,0);
   drawContours(image_output,contours,-1,blue,-1,8);
 
-  // Calculate Blob Data
+  // calculate blob data
   Blobs blobs;
   blobs.header = image_msg->header;
   blobs.image_height = image_msg->height;
@@ -191,7 +221,7 @@ void ProcessImageNodelet::imageCb(const sensor_msgs::ImageConstPtr& image_msg,
 
   sensor_msgs::ImagePtr out_image = output.toImageMsg();
 
-  // Create updated CameraInfo message
+  // create updated CameraInfo message
   sensor_msgs::CameraInfoPtr out_info = boost::make_shared<sensor_msgs::CameraInfo>(*info_msg);
 
   image_pub_.publish(out_image,out_info);
@@ -204,6 +234,6 @@ void ProcessImageNodelet::configCb(Config &config,uint32_t level)
 
 } // namespace blob_tracker
 
-// Register nodelet
+// register nodelet
 #include <pluginlib/class_list_macros.h>
 PLUGINLIB_EXPORT_CLASS( blob_tracker::ProcessImageNodelet,nodelet::Nodelet)
