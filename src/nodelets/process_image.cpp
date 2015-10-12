@@ -58,6 +58,10 @@ void ProcessImageNodelet::onInit()
   // Read parameters
   private_nh.param("queue_size",queue_size_,5);
 
+  std::string background_image_path;
+  private_nh.getParam("background_image_path",background_image_path);
+  ROS_WARN_STREAM("background_image_path " << background_image_path);
+
   // Set up dynamic reconfigure
   reconfigure_server_.reset(new ReconfigureServer(config_mutex_,private_nh));
   ReconfigureServer::CallbackType f = boost::bind(&ProcessImageNodelet::configCb,this,_1,_2);
