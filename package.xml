@@ -25,6 +25,7 @@
   <depend>libopencv-dev</depend>
   <depend>nodelet</depend>
   <depend>roscpp</depend>
+  <depend>std_msgs</depend>
   <depend>sensor_msgs</depend>
   <!-- <test_depend>rostest</test_depend> -->
   <!-- <test_depend>camera_calibration_parsers</test_depend> -->

@@ -11,6 +11,7 @@ find_package(catkin REQUIRED
   image_transport
   nodelet
   roscpp
+  std_msgs
   sensor_msgs)
 find_package(OpenCV REQUIRED)
 if (OpenCV_VERSION VERSION_EQUAL "3")

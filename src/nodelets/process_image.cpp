@@ -15,9 +15,12 @@
 
 #include <ros/console.h>
 
+#include "std_msgs/Empty.h"
+
 #include "blob_tracker/Ellipse.h"
 #include "blob_tracker/Blob.h"
 #include "blob_tracker/Blobs.h"
+
 
 namespace blob_tracker {
 
@@ -33,6 +36,7 @@ class ProcessImageNodelet : public nodelet::Nodelet
   ros::Publisher blobs_pub_;
 
   // background image
+  ros::Subscriber save_background_sub_;
   std::string background_image_path_;
   cv::Mat image_background_;
   bool save_background_image_;
@@ -52,6 +56,8 @@ class ProcessImageNodelet : public nodelet::Nodelet
                const sensor_msgs::CameraInfoConstPtr& info_msg);
 
   void configCb(Config &config,uint32_t level);
+
+  void saveBackgroundImageCb(const std_msgs::Empty::ConstPtr& msg);
 };
 
 void ProcessImageNodelet::onInit()
@@ -72,6 +78,7 @@ void ProcessImageNodelet::onInit()
   reconfigure_server_->setCallback(f);
 
   // background image
+  save_background_sub_ = private_nh.subscribe("save_background_image",2,&ProcessImageNodelet::saveBackgroundImageCb,this);
   ros::NodeHandle& private_nh_mt = getMTPrivateNodeHandle();
   private_nh.param<std::string>("background_image_path",background_image_path_,"background.png");
   save_background_image_ = false;
@@ -126,6 +133,7 @@ void ProcessImageNodelet::imageCb(const sensor_msgs::ImageConstPtr& image_msg,
   {
     save_background_image_ = false;
     cv::imwrite(background_image_path_,source_ptr->image);
+    source_ptr->image.copyTo(image_background_);
   }
 
   // subtract background image if one exists
@@ -230,6 +238,11 @@ void ProcessImageNodelet::imageCb(const sensor_msgs::ImageConstPtr& image_msg,
 void ProcessImageNodelet::configCb(Config &config,uint32_t level)
 {
   config_ = config;
+}
+
+void ProcessImageNodelet::saveBackgroundImageCb(const std_msgs::Empty::ConstPtr& msg)
+{
+  save_background_image_ = true;
 }
 
 } // namespace blob_tracker
