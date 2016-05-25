@@ -156,7 +156,7 @@ void ProcessImageNodelet::imageCb(const sensor_msgs::ImageConstPtr& image_msg,
 
   // threshold
   cv::Mat image_threshold;
-  cv::threshold(image_foreground_,image_threshold,threshold,255,cv::THRESH_BINARY);
+  cv::threshold(image_foreground_,image_threshold,threshold_,255,cv::THRESH_BINARY);
 
   // morphological opening
   cv::Mat image_morph;
