@@ -30,8 +30,10 @@ class ProcessImageNodelet : public nodelet::Nodelet
   boost::shared_ptr<image_transport::ImageTransport> it_in_,it_out_;
   image_transport::CameraSubscriber cam_sub_;
   int queue_size_;
+  cv_bridge::CvImageConstPtr source_ptr_;
 
   boost::mutex connect_mutex_;
+  boost::mutex callback_mutex_;
   image_transport::CameraPublisher image_pub_;
   ros::Publisher blobs_pub_;
 
@@ -39,7 +41,11 @@ class ProcessImageNodelet : public nodelet::Nodelet
   ros::Subscriber save_background_sub_;
   std::string background_image_path_;
   cv::Mat image_background_;
-  bool save_background_image_;
+  cv::Mat image_foreground_;
+
+  // threshold
+  double threshold_;
+  ros::Subscriber find_otsu_threshold_sub_;
 
   // dynamic reconfigure
   boost::recursive_mutex config_mutex_;
@@ -57,7 +63,10 @@ class ProcessImageNodelet : public nodelet::Nodelet
 
   void configCb(Config &config,uint32_t level);
 
-  void saveBackgroundImageCb(const std_msgs::Empty::ConstPtr& msg);
+  void saveBackgroundImageCb(const std_msgs::EmptyConstPtr& msg);
+
+  void findOtsuThresholdCallback(const std_msgs::EmptyConstPtr& message);
+
 };
 
 void ProcessImageNodelet::onInit()
@@ -78,10 +87,11 @@ void ProcessImageNodelet::onInit()
   reconfigure_server_->setCallback(f);
 
   // background image
-  save_background_sub_ = private_nh.subscribe("save_background_image",2,&ProcessImageNodelet::saveBackgroundImageCb,this);
   ros::NodeHandle& private_nh_mt = getMTPrivateNodeHandle();
   private_nh.param<std::string>("background_image_path",background_image_path_,"background.png");
-  save_background_image_ = false;
+
+  // threshold default
+  threshold_ = 20;
 
   // monitor whether anyone is subscribed to the output
   image_transport::SubscriberStatusCallback connect_cb = boost::bind(&ProcessImageNodelet::connectCb,this);
@@ -91,6 +101,8 @@ void ProcessImageNodelet::onInit()
   boost::lock_guard<boost::mutex> lock(connect_mutex_);
   image_pub_ = it_out_->advertiseCamera("image_raw",1,connect_cb,connect_cb,connect_cb_info,connect_cb_info);
   blobs_pub_ = nh.advertise<Blobs>("blobs",1000,connect_cb_blobs,connect_cb_blobs);
+  save_background_sub_ = private_nh.subscribe("save_background_image",2,&ProcessImageNodelet::saveBackgroundImageCb,this);
+  find_otsu_threshold_sub_ = nh.subscribe("find_otsu_threshold",1,&ProcessImageNodelet::findOtsuThresholdCallback,this);
 }
 
 // handles (un)subscribing when clients (un)subscribe
@@ -119,37 +131,32 @@ void ProcessImageNodelet::imageCb(const sensor_msgs::ImageConstPtr& image_msg,
     boost::lock_guard<boost::recursive_mutex> lock(config_mutex_);
     config = config_;
   }
-  int threshold = config.threshold;
   int morph_kernel_size = config.morph_kernel_size;
   int center_marker_radius = config.center_marker_radius;
   int drawn_line_thickness = config.drawn_line_thickness;
   bool draw_crosshairs = config.draw_crosshairs;
 
   // get a cv::Mat view of the source data
-  cv_bridge::CvImageConstPtr source_ptr = cv_bridge::toCvShare(image_msg,sensor_msgs::image_encodings::MONO8);
-
-  // save background image if necessary
-  if (save_background_image_)
   {
-    save_background_image_ = false;
-    cv::imwrite(background_image_path_,source_ptr->image);
-    source_ptr->image.copyTo(image_background_);
+    boost::lock_guard<boost::mutex> lock(callback_mutex_);
+    source_ptr_ = cv_bridge::toCvShare(image_msg,sensor_msgs::image_encodings::MONO8);
   }
 
   // subtract background image if one exists
-  cv::Mat image_foreground;
   if (image_background_.data)
   {
-    cv::absdiff(source_ptr->image,image_background_,image_foreground);
+    boost::lock_guard<boost::mutex> lock(callback_mutex_);
+    cv::absdiff(source_ptr_->image,image_background_,image_foreground_);
   }
   else
   {
-    image_foreground = source_ptr->image;
+    boost::lock_guard<boost::mutex> lock(callback_mutex_);
+    image_foreground_ = source_ptr_->image;
   }
 
   // threshold
   cv::Mat image_threshold;
-  cv::threshold(image_foreground,image_threshold,threshold,255,cv::THRESH_BINARY);
+  cv::threshold(image_foreground_,image_threshold,threshold,255,cv::THRESH_BINARY);
 
   // morphological opening
   cv::Mat image_morph;
@@ -224,7 +231,7 @@ void ProcessImageNodelet::imageCb(const sensor_msgs::ImageConstPtr& image_msg,
 
   cv_bridge::CvImage output;
   output.image = image_output;
-  output.header = source_ptr->header;
+  output.header = source_ptr_->header;
   output.encoding = sensor_msgs::image_encodings::BGR8;
 
   sensor_msgs::ImagePtr out_image = output.toImageMsg();
@@ -240,9 +247,19 @@ void ProcessImageNodelet::configCb(Config &config,uint32_t level)
   config_ = config;
 }
 
-void ProcessImageNodelet::saveBackgroundImageCb(const std_msgs::Empty::ConstPtr& msg)
+void ProcessImageNodelet::saveBackgroundImageCb(const std_msgs::EmptyConstPtr& msg)
 {
-  save_background_image_ = true;
+  boost::lock_guard<boost::mutex> lock(callback_mutex_);
+  cv::imwrite(background_image_path_,source_ptr_->image);
+  source_ptr_->image.copyTo(image_background_);
+}
+
+void ProcessImageNodelet::findOtsuThresholdCallback(const std_msgs::EmptyConstPtr& message)
+{
+  boost::lock_guard<boost::mutex> lock(callback_mutex_);
+  cv::Mat image_threshold;
+  threshold_ = cv::threshold(source_ptr_->image,image_threshold,0,255,cv::THRESH_BINARY+cv::THRESH_OTSU);
+  ROS_INFO("Finding Otsu threshold.");
 }
 
 } // namespace blob_tracker
