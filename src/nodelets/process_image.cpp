@@ -141,11 +141,21 @@ void ProcessImageNodelet::imageCb(const sensor_msgs::ImageConstPtr& image_msg)
     boost::lock_guard<boost::recursive_mutex> lock(config_mutex_);
     config = config_;
   }
+  threshold_ = config.threshold;
   int morph_kernel_size = config.morph_kernel_size;
-  int center_marker_radius = config.center_marker_radius;
+
+  int blob_count_max = config.blob_count_max;
+
+  bool draw_blobs = config.draw_blobs;
+  bool draw_contours = config.draw_contours;
+
   int drawn_line_thickness = config.drawn_line_thickness;
   bool draw_crosshairs = config.draw_crosshairs;
-  threshold_ = config.threshold;
+  bool draw_ellipse = config.draw_ellipse;
+  bool draw_box = config.draw_box;
+
+  int center_marker_radius = config.center_marker_radius;
+  bool draw_center_marker = config.draw_center_marker;
 
   // get a cv::Mat view of the source data
   {
@@ -172,30 +182,42 @@ void ProcessImageNodelet::imageCb(const sensor_msgs::ImageConstPtr& image_msg)
 
   // output image
   cv::Mat image_output;
-  cv::cvtColor(image_morph,image_output,CV_GRAY2BGR);
+  if (draw_blobs)
+  {
+    cv::cvtColor(image_morph,image_output,CV_GRAY2BGR);
+  }
+  else
+  {
+    image_output.create(image_morph.size(),CV_8UC3);
+  }
+
+
+  // colors
+  cv::Scalar blue(255,0,0);
+  cv::Scalar yellow(0,255,255);
+  cv::Scalar red(0,0,255);
+  cv::Scalar green(0,255,0);
 
   // draw crosshairs
   if (draw_crosshairs)
   {
     int h = image_msg->height;
     int w = image_msg->width;
-    cv::Scalar yellow(0,255,255);
     cv::line(image_output,cv::Point(0,h/2),cv::Point(w,h/2),yellow,drawn_line_thickness);
     cv::line(image_output,cv::Point(w/2,0),cv::Point(w/2,h),yellow,drawn_line_thickness);
   }
-
-  // draw Contours
-  cv::Scalar blue(255,0,0);
-  drawContours(image_output,contours,-1,blue,-1,8);
 
   // calculate blob data
   Blobs blobs;
   blobs.header = image_msg->header;
   blobs.image_height = image_msg->height;
   blobs.image_width = image_msg->width;
-  cv::Scalar red(0,0,255);
-  cv::Scalar green(0,255,0);
-  for(int i=0;i<contours.size();++i)
+
+  if (blob_count_max > contours.size())
+  {
+    blob_count_max = contours.size();
+  }
+  for(int i=0; i<blob_count_max; ++i)
   {
     Blob blob;
     cv::Moments moments = cv::moments(contours[i]);
@@ -204,6 +226,10 @@ void ProcessImageNodelet::imageCb(const sensor_msgs::ImageConstPtr& image_msg)
       size_t count = contours[i].size();
       if(count < 6)
         continue;
+      if (draw_contours)
+      {
+        drawContours(image_output,contours,i,blue,-1,8);
+      }
       cv::Mat pointsf;
       cv::Mat(contours[i]).convertTo(pointsf, CV_32F);
       cv::RotatedRect box = cv::fitEllipse(pointsf);
@@ -214,18 +240,27 @@ void ProcessImageNodelet::imageCb(const sensor_msgs::ImageConstPtr& image_msg)
       ellipse.height = box.size.height;
       ellipse.angle = box.angle;
       blob.ellipse = ellipse;
-      cv::ellipse(image_output,box,green,drawn_line_thickness);
-      cv::Point2f vtx[4];
-      box.points(vtx);
-      for(int j=0; j<4; ++j)
+      if (draw_ellipse)
       {
-        cv::line(image_output,vtx[j],vtx[(j+1)%4],cv::Scalar(255,255,0),drawn_line_thickness);
+        cv::ellipse(image_output,box,green,drawn_line_thickness);
+      }
+      if (draw_box)
+      {
+        cv::Point2f vtx[4];
+        box.points(vtx);
+        for(int j=0; j<4; ++j)
+        {
+          cv::line(image_output,vtx[j],vtx[(j+1)%4],cv::Scalar(255,255,0),drawn_line_thickness);
+        }
       }
 
-      blob.x = moments.m10/moments.m00;
-      blob.y = moments.m01/moments.m00;
-      blob.area = moments.m00;
-      cv::circle(image_output,cv::Point(blob.x,blob.y),center_marker_radius,red,-1);
+      if (draw_center_marker)
+      {
+        blob.x = moments.m10/moments.m00;
+        blob.y = moments.m01/moments.m00;
+        blob.area = moments.m00;
+        cv::circle(image_output,cv::Point(blob.x,blob.y),center_marker_radius,red,-1);
+      }
     }
     blobs.blobs.push_back(blob);
   }
