@@ -13,10 +13,12 @@ find_package(catkin REQUIRED COMPONENTS
   image_transport
   nodelet
   sensor_msgs)
+
 find_package(OpenCV REQUIRED)
 if (OpenCV_VERSION VERSION_EQUAL "3")
   add_definitions("-DOPENCV3=1")
 endif()
+
 find_package(Boost REQUIRED COMPONENTS thread)
 
 # Dynamic reconfigure support
@@ -42,7 +44,10 @@ catkin_package(
   LIBRARIES ${PROJECT_NAME}
 )
 
-include_directories(SYSTEM ${catkin_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
+include_directories(
+  ${catkin_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
+)
 include_directories(include)
 
 add_library(${PROJECT_NAME}

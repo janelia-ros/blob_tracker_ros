@@ -1,28 +1,20 @@
-<!-- Launch in the camera namespace containing "image_raw" and "camera_info" -->
 <launch>
-
-  <arg name="manager" /> <!-- Must be globally qualified -->
-  <arg name="respawn" default="false" />
-  <!-- TODO Arguments for debayer, interpolation methods? -->
-
-  <arg     if="$(arg respawn)" name="bond" value="" />
-  <arg unless="$(arg respawn)" name="bond" value="--no-bond" />
-
   <arg name="background_image_path" default="$(find blob_tracker)/background.png" />
 
-  <node pkg="nodelet" type="nodelet" name="blob_tracker"
-        args="load blob_tracker/process_image $(arg manager) $(arg bond)"
-        respawn="$(arg respawn)">
+  <group ns="camera">
+    <node pkg="nodelet" type="nodelet" name="blob_tracker"
+          args="load blob_tracker/process_image camera_nodelet_manager" >
 
-    <param name="background_image_path" value="$(arg background_image_path)"/>
+      <param name="background_image_path" value="$(arg background_image_path)"/>
 
-    <!-- remap input topics -->
-    <remap from="camera/image_raw" to="image_raw"/>
-    <remap from="camera/camera_info" to="camera_info"/>
+      <!-- remap input topics -->
+      <remap from="camera/image_raw" to="image_raw"/>
+      <remap from="camera/camera_info" to="camera_info"/>
 
-    <!-- remap output topics -->
-    <remap from="blob_out/image_raw" to="blob_out/image_raw"/>
-    <remap from="blob_out/camera_info" to="blob_out/camera_info"/>
-  </node>
+      <!-- remap output topics -->
+      <remap from="blob_out/image_raw" to="blob_out/image_raw"/>
+      <remap from="blob_out/camera_info" to="blob_out/camera_info"/>
+    </node>
+  </group>
 
 </launch>

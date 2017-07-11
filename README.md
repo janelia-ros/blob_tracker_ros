@@ -11,11 +11,11 @@ License:
 ##Running
 
 ```shell
-ROS_NAMESPACE=camera rosrun blob_tracker blob_tracker
+rosrun blob_tracker blob_tracker
 ```
 
 ```shell
-ROS_NAMESPACE=camera roslaunch blob_tracker blob_tracker.launch manager:=camera_nodelet_manager
+roslaunch blob_tracker blob_tracker.launch
 ```
 
 ```shell

@@ -36,7 +36,8 @@
 
 #include <ros/ros.h>
 
-namespace blob_tracker {
+namespace blob_tracker
+{
 
 class AdvertisementChecker
 {
