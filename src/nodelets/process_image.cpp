@@ -135,7 +135,6 @@ void ProcessImageNodelet::onInit()
 //                                   const sensor_msgs::CameraInfoConstPtr& info_msg)
 void ProcessImageNodelet::imageCb(const sensor_msgs::ImageConstPtr& image_msg)
 {
-  ROS_WARN_STREAM("imageCb");
   Config config;
   {
     boost::lock_guard<boost::recursive_mutex> lock(config_mutex_);
@@ -285,7 +284,6 @@ void ProcessImageNodelet::findOtsuThresholdCallback(const std_msgs::EmptyConstPt
   boost::lock_guard<boost::mutex> lock(callback_mutex_);
   cv::Mat image_threshold;
   threshold_ = cv::threshold(source_ptr_->image,image_threshold,0,255,cv::THRESH_BINARY+cv::THRESH_OTSU);
-  ROS_INFO("Finding Otsu threshold.");
 }
 
 } // namespace blob_tracker
