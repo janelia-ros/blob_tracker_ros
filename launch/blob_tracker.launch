@@ -1,19 +1,7 @@
 <launch>
-  <!-- <arg name="background_image_path" default="$(find blob_tracker)/background.png" /> -->
-
   <group ns="camera">
     <node pkg="nodelet" type="nodelet" name="blob_tracker"
           args="load blob_tracker/process_image camera_nodelet_manager" >
-
-      <!-- <param name="background_image_path" value="$(arg background_image_path)"/> -->
-
-      <!-- remap input topics -->
-      <!-- <remap from="camera/image_raw" to="image_raw"/> -->
-      <!-- <remap from="camera/camera_info" to="camera_info"/> -->
-
-      <!-- remap output topics -->
-      <!-- <remap from="blob_out/image_raw" to="blob_out/image_raw"/> -->
-      <!-- <remap from="blob_out/camera_info" to="blob_out/camera_info"/> -->
     </node>
   </group>
 

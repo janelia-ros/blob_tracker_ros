@@ -32,7 +32,7 @@ class ProcessImageNodelet : public nodelet::Nodelet
 {
   // ROS communication
   boost::shared_ptr<image_transport::ImageTransport> it_in_,it_out_;
-  image_transport::Subscriber cam_sub_;
+  image_transport::Subscriber image_sub_;
   int queue_size_;
   cv_bridge::CvImageConstPtr source_ptr_;
 
@@ -41,12 +41,10 @@ class ProcessImageNodelet : public nodelet::Nodelet
   image_transport::Publisher image_pub_;
   ros::Publisher blobs_pub_;
 
-  // background image
-  // ros::Subscriber save_background_sub_;
-  std::string background_image_path_;
-  cv::Mat image_background_;
-  cv::Mat image_foreground_;
+  // background subtraction
   cv::Ptr<cv::BackgroundSubtractor> bg_subtr_ptr_;
+  cv::Mat image_foreground_;
+  image_transport::Publisher foreground_pub_;
 
   // threshold
   double threshold_;
@@ -69,8 +67,6 @@ class ProcessImageNodelet : public nodelet::Nodelet
   void imageCb(const sensor_msgs::ImageConstPtr& image_msg);
 
   void configCb(Config &config,uint32_t level);
-
-  // void saveBackgroundImageCb(const std_msgs::EmptyConstPtr& msg);
 
   void findOtsuThresholdCallback(const std_msgs::EmptyConstPtr& message);
 
@@ -95,9 +91,6 @@ void ProcessImageNodelet::onInit()
   ReconfigureServer::CallbackType f = boost::bind(&ProcessImageNodelet::configCb,this,_1,_2);
   reconfigure_server_->setCallback(f);
 
-  // background image
-  // ros::NodeHandle& private_nh_mt = getMTPrivateNodeHandle();
-  // private_nh.param<std::string>("background_image_path",background_image_path_,"background.png");
   bg_subtr_ptr_ = cv::createBackgroundSubtractorMOG2();
 
   // threshold default
@@ -110,12 +103,12 @@ void ProcessImageNodelet::onInit()
   // make sure we don't enter connectCb() between advertising and assigning to image_pub_
   // boost::lock_guard<boost::mutex> lock(connect_mutex_);
   image_pub_ = it_out_->advertise("image_raw",1);
+  foreground_pub_ = it_out_->advertise("foreground_raw",1);
   // blobs_pub_ = nh.advertise<Blobs>("blobs",1000,connect_cb_blobs,connect_cb_blobs);
   blobs_pub_ = nh.advertise<Blobs>("blobs",1000);
-  // save_background_sub_ = private_nh.subscribe("save_background_image",2,&ProcessImageNodelet::saveBackgroundImageCb,this);
   find_otsu_threshold_sub_ = nh.subscribe("find_otsu_threshold",1,&ProcessImageNodelet::findOtsuThresholdCallback,this);
 
-  cam_sub_ = it_in_->subscribe("image_raw",queue_size_,&ProcessImageNodelet::imageCb,this);
+  image_sub_ = it_in_->subscribe("image_raw",queue_size_,&ProcessImageNodelet::imageCb,this);
 }
 
 // handles (un)subscribing when clients (un)subscribe
@@ -125,16 +118,16 @@ void ProcessImageNodelet::onInit()
 //   if ((image_pub_.getNumSubscribers() == 0) && (blobs_pub_.getNumSubscribers() == 0))
 //   {
 //     ROS_WARN_STREAM("shutting down subscription to image_raw");
-//     cam_sub_.shutdown();
+//     image_sub_.shutdown();
 //   }
-//   else if (!cam_sub_)
+//   else if (!image_sub_)
 //   {
 //     // read background image if one exists
 //     // image_background_ = cv::imread(background_image_path_,CV_LOAD_IMAGE_GRAYSCALE);
 
 //     // image_transport::TransportHints hints("raw",ros::TransportHints(),getPrivateNodeHandle());
-//     // cam_sub_ = it_in_->subscribeCamera("image_raw",queue_size_,&ProcessImageNodelet::imageCb,this,hints);
-//     // cam_sub_ = it_in_->subscribe("image_raw",queue_size_,&ProcessImageNodelet::imageCb,this);
+//     // image_sub_ = it_in_->subscribeCamera("image_raw",queue_size_,&ProcessImageNodelet::imageCb,this,hints);
+//     // image_sub_ = it_in_->subscribe("image_raw",queue_size_,&ProcessImageNodelet::imageCb,this);
 //   }
 // }
 
@@ -152,6 +145,7 @@ void ProcessImageNodelet::imageCb(const sensor_msgs::ImageConstPtr& image_msg)
   int center_marker_radius = config.center_marker_radius;
   int drawn_line_thickness = config.drawn_line_thickness;
   bool draw_crosshairs = config.draw_crosshairs;
+  threshold_ = config.threshold;
 
   // get a cv::Mat view of the source data
   {
@@ -159,21 +153,8 @@ void ProcessImageNodelet::imageCb(const sensor_msgs::ImageConstPtr& image_msg)
     source_ptr_ = cv_bridge::toCvShare(image_msg,sensor_msgs::image_encodings::MONO8);
   }
 
-  // subtract background image if one exists
-  // if (image_background_.data)
-  // {
-  //   boost::lock_guard<boost::mutex> lock(callback_mutex_);
-  //   cv::absdiff(source_ptr_->image,image_background_,image_foreground_);
-  // }
-  // else
-  // {
-  //   boost::lock_guard<boost::mutex> lock(callback_mutex_);
-  //   image_foreground_ = source_ptr_->image;
-  // }
-
   // update background
   bg_subtr_ptr_->apply(source_ptr_->image,image_foreground_);
-  bg_subtr_ptr_->getBackgroundImage(image_background_);
 
   // threshold
   cv::Mat image_threshold;
@@ -220,11 +201,6 @@ void ProcessImageNodelet::imageCb(const sensor_msgs::ImageConstPtr& image_msg)
     cv::Moments moments = cv::moments(contours[i]);
     if (moments.m00 > 0)
     {
-      blob.x = moments.m10/moments.m00;
-      blob.y = moments.m01/moments.m00;
-      blob.area = moments.m00;
-      cv::circle(image_output,cv::Point(blob.x,blob.y),center_marker_radius,red,-1);
-
       size_t count = contours[i].size();
       if(count < 6)
         continue;
@@ -245,37 +221,29 @@ void ProcessImageNodelet::imageCb(const sensor_msgs::ImageConstPtr& image_msg)
       {
         cv::line(image_output,vtx[j],vtx[(j+1)%4],cv::Scalar(255,255,0),drawn_line_thickness);
       }
+
+      blob.x = moments.m10/moments.m00;
+      blob.y = moments.m01/moments.m00;
+      blob.area = moments.m00;
+      cv::circle(image_output,cv::Point(blob.x,blob.y),center_marker_radius,red,-1);
     }
     blobs.blobs.push_back(blob);
   }
   blobs_pub_.publish(blobs);
 
-  // cv_bridge::CvImage output;
-  // output.image = image_output;
-  // output.header = source_ptr_->header;
-  // output.encoding = sensor_msgs::image_encodings::BGR8;
+  sensor_msgs::ImagePtr image_msg_ptr = cv_bridge::CvImage(std_msgs::Header(),"bgr8",image_output).toImageMsg();
+  image_pub_.publish(image_msg_ptr);
 
-  // sensor_msgs::ImagePtr out_image = output.toImageMsg();
-
-  // // create updated CameraInfo message
-  // sensor_msgs::CameraInfoPtr out_info = boost::make_shared<sensor_msgs::CameraInfo>(*info_msg);
-
-  // image_pub_.publish(out_image);
-  sensor_msgs::ImagePtr output_msg_ptr = cv_bridge::CvImage(std_msgs::Header(),"bgr8",image_output).toImageMsg();
-  image_pub_.publish(output_msg_ptr);
+  cv::Mat image_foreground;
+  cv::cvtColor(image_foreground_,image_foreground,CV_GRAY2BGR);
+  sensor_msgs::ImagePtr foreground_msg_ptr = cv_bridge::CvImage(std_msgs::Header(),"bgr8",image_foreground).toImageMsg();
+  foreground_pub_.publish(foreground_msg_ptr);
 }
 
 void ProcessImageNodelet::configCb(Config &config,uint32_t level)
 {
   config_ = config;
 }
-
-// void ProcessImageNodelet::saveBackgroundImageCb(const std_msgs::EmptyConstPtr& msg)
-// {
-//   boost::lock_guard<boost::mutex> lock(callback_mutex_);
-//   cv::imwrite(background_image_path_,source_ptr_->image);
-//   source_ptr_->image.copyTo(image_background_);
-// }
 
 void ProcessImageNodelet::findOtsuThresholdCallback(const std_msgs::EmptyConstPtr& message)
 {

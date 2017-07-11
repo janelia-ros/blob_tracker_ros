@@ -1,4 +1,4 @@
-#blob_tracker_ros
+# blob_tracker_ros
 
 Authors:
 
@@ -27,6 +27,6 @@ rostopic echo /camera/blobs
 ```
 
 ```shell
-rostopic pub -1 /camera/blob_tracker/save_background_image std_msgs/Empty
+rosrun rqt_reconfigure rqt_reconfigure
 ```
 
