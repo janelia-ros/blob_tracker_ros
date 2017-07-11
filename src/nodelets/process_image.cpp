@@ -1,5 +1,6 @@
 #include <boost/version.hpp>
 #if ((BOOST_VERSION / 100) % 1000) >= 53
+#include <boost/thread/mutex.hpp>
 #include <boost/thread/lock_guard.hpp>
 #endif
 
@@ -187,7 +188,7 @@ void ProcessImageNodelet::imageCb(const sensor_msgs::ImageConstPtr& image_msg)
   }
   else
   {
-    image_output.create(image_morph.size(),CV_8UC3);
+    image_output = cv::Mat::zeros(image_morph.size(),CV_8UC3);
   }
 
 
