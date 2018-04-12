@@ -1,0 +1,29 @@
+#+TITLE: blob_tracker_ros
+#+AUTHOR: Peter Polidoro
+#+EMAIL: peterpolidoro@gmail.com
+
+* Package Information
+  - Author :: Peter Polidoro
+  - License :: BSD
+
+* Running
+
+  #+BEGIN_SRC sh
+rosrun blob_tracker blob_tracker
+  #+END_SRC
+
+  #+BEGIN_SRC sh
+roslaunch blob_tracker blob_tracker.launch
+  #+END_SRC
+
+  #+BEGIN_SRC sh
+rosrun image_view image_view image:=/camera/blob_out/image_raw
+  #+END_SRC
+
+  #+BEGIN_SRC sh
+rostopic echo /camera/blobs
+  #+END_SRC
+
+  #+BEGIN_SRC sh
+rosrun rqt_reconfigure rqt_reconfigure
+  #+END_SRC
