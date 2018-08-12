@@ -4,7 +4,7 @@
   <version>0.0.0</version>
   <description>The blob_tracker package</description>
 
-  <maintainer email="polidorop@janelia.hhmi.org">Peter Polidoro</maintainer>
+  <maintainer email="peterpolidoro@gmail.com">Peter Polidoro</maintainer>
 
   <license>BSD</license>
 
@@ -12,7 +12,7 @@
   <url type="bugtracker">https://github.com/janelia-ros/blob_tracker_ros/issues</url>
   <url type="repository">https://github.com/janelia-ros/blob_tracker_ros</url>
 
-  <author email="polidorop@janelia.hhmi.org">Peter Polidoro</author>
+  <author email="peterpolidoro@gmail.com">Peter Polidoro</author>
 
   <buildtool_depend version_gte="0.5.68">catkin</buildtool_depend>
   <build_depend>boost</build_depend>
